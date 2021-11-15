@@ -1,0 +1,24 @@
+{
+  "name": "Digitimer DS5 / National Instruments",
+  "device_id": "SC91BBkyiIWxnJMipKYk",
+  "device_type": "Digitimer_DS5_NI_USB_6202",
+  "data_to_report": {
+    "stimulation_current_loopback": [ 10, "float" ]
+  },
+  "data_to_control": {
+    "normalised_current_level": "float"
+  },
+  "report_pack_order": {
+    "packed": true,
+    "order":  null
+  },
+  "control_pack_order": null,
+  "visual_report": {
+    "stimulation_current_loopback": "line_chart",
+    "data_rate": 100
+  },
+  "visual_control": {
+    "basket_size_scale": "static",
+    "left_hand_position": "static"
+  }
+ }
