@@ -18,7 +18,6 @@
     "data_rate": 100
   },
   "visual_control": {
-    "basket_size_scale": "static",
-    "left_hand_position": "static"
+	"normalised_current_level": "float"
   }
- }
+}

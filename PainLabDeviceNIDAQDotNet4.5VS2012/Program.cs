@@ -37,7 +37,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
 
         public StimulationDataFrame(AnalogWaveform<double>[] buffer)
         {
-            double[] stimulation_current_loopback = GetChannelData(buffer[0]);
+            stimulation_current_loopback = GetChannelData(buffer[0]);
         }
     }
 
@@ -47,7 +47,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
         static double sampleRate = 1000.0;
         static Int32 NIBufferSize = 1000;
         static Int32 numSamplesPerFrame = 10;
-        static double maxVolt = 10;
+        static double currnetChannelMaxVolt = 5;
 
         private Task _NITask;
         private AnalogMultiChannelReader _analogInReader;
@@ -76,8 +76,8 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
 
             // Create a virtual channel
             _NITask.AIChannels.CreateVoltageChannel("Dev1/ai0", "StimulationCurrentLoopback",
-                (AITerminalConfiguration)(-1)  /* -1 is default from NIDAQmx.h */, Convert.ToDouble(-maxVolt),
-                maxVolt, AIVoltageUnits.Volts);
+                (AITerminalConfiguration)(-1)  /* -1 is default from NIDAQmx.h */, Convert.ToDouble(0),
+                currnetChannelMaxVolt, AIVoltageUnits.Volts);
 
             // Configure the timing parameters
             _NITask.Timing.ConfigureSampleClock("", sampleRate,
