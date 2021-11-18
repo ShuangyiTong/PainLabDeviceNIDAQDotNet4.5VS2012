@@ -51,12 +51,15 @@ public class PainlabProtocol
     protected UInt32 _numControlBytes = 0;
     protected byte[] _controlBuffer = null;
 
+    protected bool _waitOnControl = false;
+    protected Semaphore _waitOnControlSem = null;
+
     protected virtual void DebugOutput(string msg)
     {
         Console.WriteLine(msg);
     }
 
-    public void Init(NetworkConfig netConf)
+    public void Init(NetworkConfig netConf, bool waitOnControl=false)
     {
         _bufferSize = netConf.maxFrameBuffer;
         _queueBuffer = new byte[_bufferSize];
@@ -64,10 +67,16 @@ public class PainlabProtocol
         _listenBuffer = new byte[_bufferSize];
         _controlBuffer = new byte[_bufferSize];
 
-        _sendSync = new Semaphore(1, 1);
+        _sendSync = new Semaphore(0, 1);
         _queueBufferLock = new Mutex();
         _queueBufferSem = new Semaphore(0, 1);
         _sendLock = new Mutex();
+
+        if (waitOnControl)
+        {
+            _waitOnControl = true;
+            _waitOnControlSem = new Semaphore(0, 1);
+        }
 
         try
         {
@@ -149,6 +158,11 @@ public class PainlabProtocol
                                 // going into this section must be control data
                                 Array.Copy(_listenBuffer, 4, _controlBuffer, 0, (int)totalBytes);
                                 _numControlBytes = (UInt32)totalBytes;
+
+                                if (_waitOnControl)
+                                {
+                                    _waitOnControlSem.Release();
+                                }
                             }
 
                             // handle sticky packets

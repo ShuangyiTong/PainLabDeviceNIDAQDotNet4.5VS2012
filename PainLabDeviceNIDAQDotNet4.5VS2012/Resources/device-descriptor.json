@@ -3,21 +3,21 @@
   "device_id": "SC91BBkyiIWxnJMipKYk",
   "device_type": "Digitimer_DS5_NI_USB_6202",
   "data_to_report": {
-    "stimulation_current_loopback": [ 10, "float" ]
+    "stimulation_current_loopback": "float"
   },
   "data_to_control": {
     "normalised_current_level": "float"
   },
   "report_pack_order": {
-    "packed": true,
+    "packed": 10,
     "order":  null
   },
   "control_pack_order": null,
   "visual_report": {
     "stimulation_current_loopback": "line_chart",
-    "data_rate": 100
+    "data_rate": 1000
   },
   "visual_control": {
-	"normalised_current_level": "float"
+	"normalised_current_level": ["slider", 0, 10]
   }
 }
