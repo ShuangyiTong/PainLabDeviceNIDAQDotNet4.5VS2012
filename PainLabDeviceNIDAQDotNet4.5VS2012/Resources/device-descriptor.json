@@ -17,6 +17,9 @@
     "stimulation_current_loopback": "line_chart",
     "data_rate": 1000
   },
+  "visual_value_range": {
+	"stimulation_current_loopback": {"min": -1, "max": 11}
+  },
   "visual_control": {
 	"normalised_current_level": ["slider", 0, 10]
   }

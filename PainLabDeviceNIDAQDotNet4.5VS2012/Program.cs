@@ -36,11 +36,12 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
         {
             StimulationPulses pulseSignalGenerator = new StimulationPulses();
 
+            outTask.Stop();
             writer.WriteMultiSample(false, pulseSignalGenerator.generatePulses(normalised_current_level));
             outTask.Start();
-            Thread.Sleep(25); // Seems this NI device don't know what it means by WaitUntilDone, so we do it manually
             outTask.WaitUntilDone();
-            outTask.Stop();
+            // Strange problem. Looks ok for now: https://forums.ni.com/t5/Multifunction-DAQ/WaitUntilDone-finishes-before-pulses-written-complete/td-p/4193057?profile.language=en
+            Thread.Sleep(StimulationPulses.pulses.Length);
         }
     }
 
@@ -71,8 +72,8 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
         static string descriptorPath = "Resources/device-descriptor.json";
         static double sampleRate = 1000.0;
         static Int32 NIBufferSize = 1000;
-        static Int32 numSamplesPerFrame = 10;
-        static double currentChannelMaxVolt = 5;
+        static Int32 numSamplesPerFrame = 20;
+        static double currentChannelMaxVolt = 10;
         static double outputChannelMaxVolt = 10;
 
         private Task _analogInTask;
