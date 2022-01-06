@@ -49,6 +49,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
     class StimulationDataFrame
     {
         public double[] stimulation_current_loopback;
+        public double[] stimulation_voltage;
 
         private double[] GetChannelData(AnalogWaveform<double> waveform)
         {
@@ -64,6 +65,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
         public StimulationDataFrame(AnalogWaveform<double>[] buffer)
         {
             stimulation_current_loopback = GetChannelData(buffer[0]);
+            stimulation_voltage = GetChannelData(buffer[1]);
         }
     }
 
@@ -124,6 +126,15 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
             _analogInTask.AIChannels.CreateVoltageChannel(
                 "Dev1/ai0",
                 "StimulationCurrentLoopback",
+                (AITerminalConfiguration)(-1)  /* -1 is default from NIDAQmx.h */,
+                Convert.ToDouble(-currentChannelMaxVolt),
+                Convert.ToDouble(currentChannelMaxVolt), 
+                AIVoltageUnits.Volts);
+
+            // Another channel for voltage
+           _analogInTask.AIChannels.CreateVoltageChannel(
+                "Dev1/ai1",
+                "StimulationVoltage",
                 (AITerminalConfiguration)(-1)  /* -1 is default from NIDAQmx.h */,
                 Convert.ToDouble(-currentChannelMaxVolt),
                 Convert.ToDouble(currentChannelMaxVolt), 
