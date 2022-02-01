@@ -30,6 +30,7 @@ public class NetworkConfig
     public string host;
     public int port;
     public UInt32 maxFrameBuffer;
+    public UInt32 bufferQueueSize;
 }
 
 public class PainlabProtocol
@@ -42,8 +43,8 @@ public class PainlabProtocol
     protected UInt32 _bufferSize = 0;
     protected Mutex _queueBufferLock = null;
     protected Semaphore _queueBufferSem = null;
-    protected UInt32 _queueNumBytes = 0;
-    protected byte[] _queueBuffer = null;
+    protected Queue<UInt32> _queueNumBytes = null;
+    protected Queue<byte[]> _queueBuffer = null;
     private UInt32 _sendNumBytes = 0;
     private byte[] _sendBuffer = null;
     private Mutex _sendLock = null;
@@ -62,14 +63,16 @@ public class PainlabProtocol
     public void Init(NetworkConfig netConf, bool waitOnControl=false)
     {
         _bufferSize = netConf.maxFrameBuffer;
-        _queueBuffer = new byte[_bufferSize];
+        _queueNumBytes = new Queue<UInt32>();
+        _queueBuffer = new Queue<byte[]>();
+
         _sendBuffer = new byte[_bufferSize];
         _listenBuffer = new byte[_bufferSize];
         _controlBuffer = new byte[_bufferSize];
 
         _sendSync = new Semaphore(0, 1);
         _queueBufferLock = new Mutex();
-        _queueBufferSem = new Semaphore(0, 1);
+        _queueBufferSem = new Semaphore(0, (int)netConf.bufferQueueSize);
         _sendLock = new Mutex();
 
         if (waitOnControl)
@@ -260,8 +263,12 @@ public class PainlabProtocol
 
             // copy to send buffer guarded with lock
             _queueBufferLock.WaitOne();
-            _sendNumBytes = _queueNumBytes;
-            Array.Copy(_queueBuffer, _sendBuffer, _sendNumBytes);
+            _sendNumBytes = _queueNumBytes.Peek();
+            Array.Copy(_queueBuffer.Peek(), _sendBuffer, _sendNumBytes);
+
+            _queueNumBytes.Dequeue();
+            _queueBuffer.Dequeue();
+
             _queueBufferLock.ReleaseMutex();
             SendData(_sendBuffer, _sendNumBytes);
 
@@ -301,8 +308,8 @@ public class PainlabProtocol
 
         // Copy to frame buffer
         _queueBufferLock.WaitOne();
-        _queueNumBytes = (UInt32)frameBytes.Length;
-        Array.Copy(frameBytes, _queueBuffer, _queueNumBytes);
+        _queueNumBytes.Enqueue((UInt32)frameBytes.Length);
+        _queueBuffer.Enqueue(frameBytes);
         _queueBufferLock.ReleaseMutex();
 
         try

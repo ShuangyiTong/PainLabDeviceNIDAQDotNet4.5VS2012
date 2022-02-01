@@ -1,5 +1,6 @@
 {
   "host" : "127.0.0.1",
   "port": 8124,
-  "maxFrameBuffer" :  65536
+  "maxFrameBuffer" :  65536,
+  "bufferQueueSize" : 100
 }

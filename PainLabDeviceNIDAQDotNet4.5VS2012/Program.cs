@@ -13,7 +13,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
 {
     class StimulationPulses
     {
-        public static double[] pulses = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0 };
+        public static double[] pulses = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0 };
 
         public double[] generatePulses(double factor)
         {
