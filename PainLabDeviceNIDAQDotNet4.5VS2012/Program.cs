@@ -72,9 +72,10 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
     class PainlabNIDS5Protocol : PainlabProtocol
     {
         static string descriptorPath = "Resources/device-descriptor.json";
-        static double sampleRate = 1000.0;
-        static Int32 NIBufferSize = 1000;
-        static Int32 numSamplesPerFrame = 20;
+        static double inSampleRate = 10000.0;
+        static double outSampleRate = 1000.0;
+        static Int32 NIBufferSize = 10000;
+        static Int32 numSamplesPerFrame = 200;
         static double currentChannelMaxVolt = 10;
         static double outputChannelMaxVolt = 10;
 
@@ -141,7 +142,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
                 AIVoltageUnits.Volts);
 
             // Configure the timing parameters
-            _analogInTask.Timing.ConfigureSampleClock("", sampleRate,
+            _analogInTask.Timing.ConfigureSampleClock("", inSampleRate,
                 SampleClockActiveEdge.Rising, SampleQuantityMode.ContinuousSamples, NIBufferSize);
 
             // Verify the Task
@@ -170,7 +171,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
             // Configure the sample clock
             _analogOutTask.Timing.ConfigureSampleClock(
                 String.Empty, /* means the internal clock */
-                sampleRate,
+                outSampleRate,
                 SampleClockActiveEdge.Rising,
                 SampleQuantityMode.FiniteSamples, StimulationPulses.pulses.Length);
 
