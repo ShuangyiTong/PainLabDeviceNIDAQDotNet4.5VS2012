@@ -13,15 +13,15 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
 {
     class StimulationPulses
     {
-        public static double[] pulses = { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0 };
-
+        public static int pulseLength = 50;
         public double[] generatePulses(double factor)
         {
-            double[] generatedPulses = new double[pulses.Length];
+            double[] generatedPulses = new double[pulseLength];
 
-            for (int i = 0; i < pulses.Length; i++)
+            for (int i = 0; i < generatedPulses.Length; i++)
             {
-                generatedPulses[i] = factor * pulses[i];
+                double val = (i % 5 == 0) ? 1.0 : 0.0;
+                generatedPulses[i] = factor * val;
             }
 
             return generatedPulses;
@@ -41,7 +41,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
             outTask.Start();
             outTask.WaitUntilDone();
             // Strange problem. Looks ok for now: https://forums.ni.com/t5/Multifunction-DAQ/WaitUntilDone-finishes-before-pulses-written-complete/td-p/4193057?profile.language=en
-            Thread.Sleep(StimulationPulses.pulses.Length);
+            Thread.Sleep(StimulationPulses.pulseLength);
         }
     }
 
@@ -173,7 +173,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
                 String.Empty, /* means the internal clock */
                 outSampleRate,
                 SampleClockActiveEdge.Rising,
-                SampleQuantityMode.FiniteSamples, StimulationPulses.pulses.Length);
+                SampleQuantityMode.FiniteSamples, StimulationPulses.pulseLength);
 
             // Verify the task
             _analogOutTask.Control(TaskAction.Verify);
