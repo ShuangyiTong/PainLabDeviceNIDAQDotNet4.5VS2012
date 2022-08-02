@@ -13,12 +13,21 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
 {
     class StimulationPulses
     {
-        public static int pulseLength = 50;
+        public int pulseLength = 50;
+        public StimulationPulses(int stimulationLength)
+        {
+            if (stimulationLength > 500)
+            {
+                stimulationLength = 500;
+            }
+            pulseLength = stimulationLength;
+        }
         public double[] generatePulses(double factor)
         {
-            double[] generatedPulses = new double[pulseLength];
+            double[] generatedPulses = new double[500];
+            Array.Clear(generatedPulses, 0, 500);
 
-            for (int i = 0; i < generatedPulses.Length; i++)
+            for (int i = 0; i < pulseLength; i++)
             {
                 double val = (i % 5 == 0) ? 1.0 : 0.0;
                 generatedPulses[i] = factor * val;
@@ -32,16 +41,24 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
     class StimulationControlFrame
     {
         public double normalised_current_level;
-        public void ApplyControlData(AnalogSingleChannelWriter writer, Task outTask)
+        public int stimulation_length = -1;
+        public long ApplyControlData(AnalogSingleChannelWriter writer, Task outTask, Int32 stimulationLength)
         {
-            StimulationPulses pulseSignalGenerator = new StimulationPulses();
+            
+            if (stimulation_length == -1) // use previous set stimulation length
+            {
+                stimulation_length = stimulationLength;
+            }
+            StimulationPulses pulseSignalGenerator = new StimulationPulses(stimulation_length);
 
             outTask.Stop();
+            DateTimeOffset now = DateTimeOffset.UtcNow;
             writer.WriteMultiSample(false, pulseSignalGenerator.generatePulses(normalised_current_level));
             outTask.Start();
             outTask.WaitUntilDone();
             // Strange problem. Looks ok for now: https://forums.ni.com/t5/Multifunction-DAQ/WaitUntilDone-finishes-before-pulses-written-complete/td-p/4193057?profile.language=en
-            Thread.Sleep(StimulationPulses.pulseLength);
+            Thread.Sleep(500);
+            return now.ToUnixTimeMilliseconds();
         }
     }
 
@@ -50,6 +67,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
     {
         public double[] stimulation_current_loopback;
         public double[] stimulation_voltage;
+        public long last_shock_on_device;
 
         private double[] GetChannelData(AnalogWaveform<double> waveform)
         {
@@ -62,20 +80,21 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
             return samples;
         }
 
-        public StimulationDataFrame(AnalogWaveform<double>[] buffer)
+        public StimulationDataFrame(AnalogWaveform<double>[] buffer, long last_ts)
         {
             stimulation_current_loopback = GetChannelData(buffer[0]);
             stimulation_voltage = GetChannelData(buffer[1]);
+            last_shock_on_device = last_ts;
         }
     }
 
     class PainlabNIDS5Protocol : PainlabProtocol
     {
         static string descriptorPath = "Resources/device-descriptor.json";
-        static double inSampleRate = 10000.0;
+        static double inSampleRate = 1000.0;
         static double outSampleRate = 1000.0;
-        static Int32 NIBufferSize = 10000;
-        static Int32 numSamplesPerFrame = 200;
+        static Int32 NIBufferSize = 1000;
+        static Int32 numSamplesPerFrame = 20;
         static double currentChannelMaxVolt = 10;
         static double outputChannelMaxVolt = 10;
 
@@ -86,6 +105,9 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
         private AnalogWaveform<double>[] _buffer;
         private AnalogSingleChannelWriter _analogOutWriter;
         private bool _outputSuccessFlag = true;
+        private Int32 _pulseLength = 50;
+
+        private long _last_ts = -1;
 
         protected override void RegisterWithDescriptor()
         {
@@ -101,7 +123,8 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
                     = JsonConvert.DeserializeObject<StimulationControlFrame>
                       (Encoding.UTF8.GetString(_controlBuffer, 0, (int)_numControlBytes));
 
-            controlFrame.ApplyControlData(_analogOutWriter, _analogOutTask);
+            _last_ts = controlFrame.ApplyControlData(_analogOutWriter, _analogOutTask, _pulseLength);
+            _pulseLength = controlFrame.stimulation_length == -1 ? _pulseLength : controlFrame.stimulation_length;
             if (_outputSuccessFlag != true)
             {
                 _outputSuccessFlag = true; // set back to true
@@ -173,7 +196,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
                 String.Empty, /* means the internal clock */
                 outSampleRate,
                 SampleClockActiveEdge.Rising,
-                SampleQuantityMode.FiniteSamples, StimulationPulses.pulseLength);
+                SampleQuantityMode.FiniteSamples, 500);
 
             // Verify the task
             _analogOutTask.Control(TaskAction.Verify);
@@ -184,7 +207,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
 
         private byte[] PrepareDataFrameBytes()
         {
-            StimulationDataFrame dataFrame = new StimulationDataFrame(_buffer);
+            StimulationDataFrame dataFrame = new StimulationDataFrame(_buffer, _last_ts);
             byte[] byteData = StringToBytes(JsonConvert.SerializeObject(dataFrame, Formatting.None));
 
             return byteData;

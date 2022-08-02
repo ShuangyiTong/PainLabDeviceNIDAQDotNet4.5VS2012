@@ -4,20 +4,22 @@
   "device_type": "Digitimer_DS5_NI_USB_6202",
   "data_to_report": {
     "stimulation_current_loopback": "float",
-	"stimulation_voltage": "float"
+	"stimulation_voltage": "float",
+	"last_shock_on_device": "int"
   },
   "data_to_control": {
-    "normalised_current_level": "float"
+    "normalised_current_level": "float",
+	"stimulation_length": "int"
   },
   "report_pack_order": {
-    "packed": 100,
+    "packed": 20,
     "order":  null
   },
   "control_pack_order": null,
   "visual_report": {
     "stimulation_current_loopback": "line_chart",
 	"stimulation_voltage": "line_chart",
-    "data_rate": 10000,
+    "data_rate": 1000,
 	"rolling_time": 1
   },
   "visual_value_range": {
@@ -25,6 +27,7 @@
 	"stimulation_voltage": {"min": -1, "max": 11}
   },
   "visual_control": {
-	"normalised_current_level": ["slider", 0, 10]
+	"normalised_current_level": ["slider", 0, 10],
+	"stimulation_length": "static"
   }
 }
