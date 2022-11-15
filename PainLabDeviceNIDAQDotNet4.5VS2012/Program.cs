@@ -40,25 +40,42 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
     [Serializable]
     class StimulationControlFrame
     {
-        public double normalised_current_level;
+        public double normalised_current_level = -1;
         public int stimulation_length = -1;
-        public long ApplyControlData(AnalogSingleChannelWriter writer, Task outTask, Int32 stimulationLength)
+        public int switch_channel = -1;
+        public long ApplyControlData(AnalogSingleChannelWriter writer, Task analogOutTask, DigitalSingleChannelWriter digitalWriter, Int32 stimulationLength)
         {
             
             if (stimulation_length == -1) // use previous set stimulation length
             {
                 stimulation_length = stimulationLength;
             }
-            StimulationPulses pulseSignalGenerator = new StimulationPulses(stimulation_length);
 
-            outTask.Stop();
-            DateTimeOffset now = DateTimeOffset.UtcNow;
-            writer.WriteMultiSample(false, pulseSignalGenerator.generatePulses(normalised_current_level));
-            outTask.Start();
-            outTask.WaitUntilDone();
-            // Strange problem. Looks ok for now: https://forums.ni.com/t5/Multifunction-DAQ/WaitUntilDone-finishes-before-pulses-written-complete/td-p/4193057?profile.language=en
-            Thread.Sleep(500);
-            return now.ToUnixTimeMilliseconds();
+            if (switch_channel != -1)
+            {
+                bool[] dataArray = new bool[8];
+                for (int line = 0; line < 8; line++)
+                {
+                    dataArray[line] = true ? switch_channel == line : false;
+                }
+                digitalWriter.WriteSingleSampleMultiLine(true, dataArray);
+            }
+
+            if (normalised_current_level != -1)
+            {
+                StimulationPulses pulseSignalGenerator = new StimulationPulses(stimulation_length);
+
+                analogOutTask.Stop();
+                DateTimeOffset now = DateTimeOffset.UtcNow;
+                writer.WriteMultiSample(false, pulseSignalGenerator.generatePulses(normalised_current_level));
+                analogOutTask.Start();
+                analogOutTask.WaitUntilDone();
+                // Strange problem. Looks ok for now: https://forums.ni.com/t5/Multifunction-DAQ/WaitUntilDone-finishes-before-pulses-written-complete/td-p/4193057?profile.language=en
+                Thread.Sleep(500);
+                return now.ToUnixTimeMilliseconds();
+            }
+
+            return -1;
         }
     }
 
@@ -100,10 +117,12 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
 
         private Task _analogInTask;
         private Task _analogOutTask;
+        private Task _digitalOutTask;
         private AnalogMultiChannelReader _analogInReader;
         private AsyncCallback _analogCallback;
         private AnalogWaveform<double>[] _buffer;
         private AnalogSingleChannelWriter _analogOutWriter;
+        private DigitalSingleChannelWriter _digitalOutWriter;
         private bool _outputSuccessFlag = true;
         private Int32 _pulseLength = 50;
 
@@ -123,7 +142,8 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
                     = JsonConvert.DeserializeObject<StimulationControlFrame>
                       (Encoding.UTF8.GetString(_controlBuffer, 0, (int)_numControlBytes));
 
-            _last_ts = controlFrame.ApplyControlData(_analogOutWriter, _analogOutTask, _pulseLength);
+            long applyResult = controlFrame.ApplyControlData(_analogOutWriter, _analogOutTask, _digitalOutWriter, _pulseLength);
+            _last_ts = applyResult == -1 ? _last_ts : applyResult;
             _pulseLength = controlFrame.stimulation_length == -1 ? _pulseLength : controlFrame.stimulation_length;
             if (_outputSuccessFlag != true)
             {
@@ -203,6 +223,12 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
 
             // Write the data
             _analogOutWriter = new AnalogSingleChannelWriter(_analogOutTask.Stream);
+
+            /* Digital write channel setup */
+            _digitalOutTask = new Task();
+            _digitalOutTask.DOChannels.CreateChannel("Dev1/Port0/line0:7", "",
+                        ChannelLineGrouping.OneChannelForAllLines);
+            _digitalOutWriter = new DigitalSingleChannelWriter(_digitalOutTask.Stream);
         }
 
         private byte[] PrepareDataFrameBytes()
