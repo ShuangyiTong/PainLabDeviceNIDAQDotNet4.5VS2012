@@ -22,15 +22,15 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
             }
             pulseLength = stimulationLength;
         }
-        public double[] generatePulses(double factor)
+        public double[,] generatePulses(double factor, int selected_channel)
         {
-            double[] generatedPulses = new double[500];
-            Array.Clear(generatedPulses, 0, 500);
+            double[,] generatedPulses = new double[2, 500];
+            Array.Clear(generatedPulses, 0, generatedPulses.Length);
 
             for (int i = 0; i < pulseLength; i++)
             {
                 double val = (i % 5 == 0) ? 1.0 : 0.0;
-                generatedPulses[i] = factor * val;
+                generatedPulses[selected_channel, i] = factor * val;
             }
 
             return generatedPulses;
@@ -43,7 +43,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
         public double normalised_current_level = -1;
         public int stimulation_length = -1;
         public int switch_channel = -1;
-        public long ApplyControlData(AnalogSingleChannelWriter writer, Task analogOutTask, DigitalSingleChannelWriter digitalWriter, Int32 stimulationLength)
+        public long ApplyControlData(AnalogMultiChannelWriter writer, Task analogOutTask, DigitalSingleChannelWriter digitalWriter, Int32 stimulationLength, int selected_channel = 0)
         {
             
             if (stimulation_length == -1) // use previous set stimulation length
@@ -51,7 +51,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
                 stimulation_length = stimulationLength;
             }
 
-            if (switch_channel != -1)
+            if (switch_channel != -1 && digitalWriter != null)
             {
                 bool[] dataArray = new bool[8];
                 for (int line = 0; line < 8; line++)
@@ -67,7 +67,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
 
                 analogOutTask.Stop();
                 DateTimeOffset now = DateTimeOffset.UtcNow;
-                writer.WriteMultiSample(false, pulseSignalGenerator.generatePulses(normalised_current_level));
+                writer.WriteMultiSample(false, pulseSignalGenerator.generatePulses(normalised_current_level, selected_channel));
                 analogOutTask.Start();
                 analogOutTask.WaitUntilDone();
                 // Strange problem. Looks ok for now: https://forums.ni.com/t5/Multifunction-DAQ/WaitUntilDone-finishes-before-pulses-written-complete/td-p/4193057?profile.language=en
@@ -97,17 +97,25 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
             return samples;
         }
 
-        public StimulationDataFrame(AnalogWaveform<double>[] buffer, long last_ts)
+        public StimulationDataFrame(AnalogWaveform<double>[] buffer, long last_ts, int channel_offset = 0)
         {
-            stimulation_current_loopback = GetChannelData(buffer[0]);
-            stimulation_voltage = GetChannelData(buffer[1]);
+            stimulation_current_loopback = GetChannelData(buffer[channel_offset]);
+            stimulation_voltage = GetChannelData(buffer[1 + channel_offset]);
             last_shock_on_device = last_ts;
         }
+    }
+
+    [Serializable]
+    class ChannelConfig
+    {
+        public string device_name;
+        public string switch_channel_method;
     }
 
     class PainlabNIDS5Protocol : PainlabProtocol
     {
         static string descriptorPath = "Resources/device-descriptor.json";
+        static string channelConfigPath = "Resources/channel-config.json";
         static double inSampleRate = 1000.0;
         static double outSampleRate = 1000.0;
         static Int32 NIBufferSize = 1000;
@@ -115,13 +123,16 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
         static double currentChannelMaxVolt = 10;
         static double outputChannelMaxVolt = 10;
 
+        private ChannelConfig _channelConfig;
+        private int _selected_channel;
+
         private Task _analogInTask;
         private Task _analogOutTask;
         private Task _digitalOutTask;
         private AnalogMultiChannelReader _analogInReader;
         private AsyncCallback _analogCallback;
         private AnalogWaveform<double>[] _buffer;
-        private AnalogSingleChannelWriter _analogOutWriter;
+        private AnalogMultiChannelWriter _analogOutWriter;
         private DigitalSingleChannelWriter _digitalOutWriter;
         private bool _outputSuccessFlag = true;
         private Int32 _pulseLength = 50;
@@ -142,9 +153,23 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
                     = JsonConvert.DeserializeObject<StimulationControlFrame>
                       (Encoding.UTF8.GetString(_controlBuffer, 0, (int)_numControlBytes));
 
-            long applyResult = controlFrame.ApplyControlData(_analogOutWriter, _analogOutTask, _digitalOutWriter, _pulseLength);
+            long applyResult = 0;
+            if (_channelConfig.switch_channel_method == "dual")
+            {
+                applyResult = controlFrame.ApplyControlData(_analogOutWriter, _analogOutTask, null, _pulseLength, _selected_channel);
+            }
+            else
+            {
+                applyResult = controlFrame.ApplyControlData(_analogOutWriter, _analogOutTask, _digitalOutWriter, _pulseLength);
+            }
             _last_ts = applyResult == -1 ? _last_ts : applyResult;
             _pulseLength = controlFrame.stimulation_length == -1 ? _pulseLength : controlFrame.stimulation_length;
+
+            if (controlFrame.switch_channel != -1 && _channelConfig.switch_channel_method == "dual")
+            {
+                _selected_channel = controlFrame.switch_channel;
+            }
+
             if (_outputSuccessFlag != true)
             {
                 _outputSuccessFlag = true; // set back to true
@@ -163,6 +188,10 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
 
         public void setupNIChannel()
         {
+            // Read Config
+            _channelConfig = JsonConvert.DeserializeObject<ChannelConfig>
+                (File.ReadAllText(channelConfigPath));
+
             /* Analog In Channel setup */
             _analogInTask = new Task();
 
@@ -183,6 +212,27 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
                 Convert.ToDouble(-currentChannelMaxVolt),
                 Convert.ToDouble(currentChannelMaxVolt), 
                 AIVoltageUnits.Volts);
+
+           if (_channelConfig.switch_channel_method == "dual")
+           {
+               // Second current channel
+               _analogInTask.AIChannels.CreateVoltageChannel(
+                   "Dev1/ai2",
+                   "StimulationCurrentLoopback2",
+                   (AITerminalConfiguration)(-1)  /* -1 is default from NIDAQmx.h */,
+                   Convert.ToDouble(-currentChannelMaxVolt),
+                   Convert.ToDouble(currentChannelMaxVolt),
+                   AIVoltageUnits.Volts);
+
+               // Second voltage channel
+               _analogInTask.AIChannels.CreateVoltageChannel(
+                    "Dev1/ai3",
+                    "StimulationVoltage2",
+                    (AITerminalConfiguration)(-1)  /* -1 is default from NIDAQmx.h */,
+                    Convert.ToDouble(-currentChannelMaxVolt),
+                    Convert.ToDouble(currentChannelMaxVolt),
+                    AIVoltageUnits.Volts);
+           }
 
             // Configure the timing parameters
             _analogInTask.Timing.ConfigureSampleClock("", inSampleRate,
@@ -211,6 +261,17 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
                 Convert.ToDouble(outputChannelMaxVolt),
                 AOVoltageUnits.Volts);
 
+            if (_channelConfig.switch_channel_method == "dual")
+            {
+                // Second voltage out channel
+                _analogOutTask.AOChannels.CreateVoltageChannel(
+                    "Dev1/ao1",
+                    "StimulationOutput2",
+                    Convert.ToDouble(-outputChannelMaxVolt),
+                    Convert.ToDouble(outputChannelMaxVolt),
+                    AOVoltageUnits.Volts);
+            }
+
             // Configure the sample clock
             _analogOutTask.Timing.ConfigureSampleClock(
                 String.Empty, /* means the internal clock */
@@ -222,7 +283,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
             _analogOutTask.Control(TaskAction.Verify);
 
             // Write the data
-            _analogOutWriter = new AnalogSingleChannelWriter(_analogOutTask.Stream);
+            _analogOutWriter = new AnalogMultiChannelWriter(_analogOutTask.Stream);
 
             /* Digital write channel setup */
             _digitalOutTask = new Task();
@@ -233,9 +294,13 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
 
         private byte[] PrepareDataFrameBytes()
         {
-            StimulationDataFrame dataFrame = new StimulationDataFrame(_buffer, _last_ts);
+            int channelOffset = 0;
+            if (_channelConfig.switch_channel_method == "dual")
+            {
+                channelOffset += _selected_channel * 2;
+            }
+            StimulationDataFrame dataFrame = new StimulationDataFrame(_buffer, _last_ts, channelOffset);
             byte[] byteData = StringToBytes(JsonConvert.SerializeObject(dataFrame, Formatting.None));
-
             return byteData;
         }
 

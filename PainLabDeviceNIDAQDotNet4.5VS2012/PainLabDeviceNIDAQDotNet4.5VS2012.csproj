@@ -82,6 +82,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="Resources\channel-config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="Resources\device-descriptor.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
