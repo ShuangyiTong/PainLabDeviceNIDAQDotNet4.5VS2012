@@ -197,7 +197,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
 
             // Create a virtual channel
             _analogInTask.AIChannels.CreateVoltageChannel(
-                "Dev1/ai0",
+                _channelConfig.device_name + "/ai0",
                 "StimulationCurrentLoopback",
                 (AITerminalConfiguration)(-1)  /* -1 is default from NIDAQmx.h */,
                 Convert.ToDouble(-currentChannelMaxVolt),
