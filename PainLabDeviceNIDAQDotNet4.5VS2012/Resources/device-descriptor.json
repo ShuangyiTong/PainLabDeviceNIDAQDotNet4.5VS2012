@@ -10,7 +10,9 @@
   "data_to_control": {
     "normalised_current_level": "float",
 	"stimulation_length": "int",
-	"switch_channel": "int"
+	"switch_channel": "int",
+	"pulse_width": "int",
+	"frequency": "int"
   },
   "report_pack_order": {
     "packed": 20,
@@ -30,6 +32,8 @@
   "visual_control": {
 	"normalised_current_level": ["slider", 0, 10],
 	"stimulation_length": "static",
-	"switch_channel": "static"
+	"switch_channel": "static",
+	"pulse_width": "static",
+	"frequency": "static"
   }
 }
