@@ -1,4 +1,4 @@
 ﻿{
   "device_name" : "Dev1",
-  "switch_channel_method" : "dual"
+  "switch_channel_method" : "control-trigger"
 }

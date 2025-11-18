@@ -37,7 +37,16 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
                 double val = (i % (int)(1000 / frequency) <= (pulseWidth - 1)) ? 1.0 : 0.0;
                 //Console.Write(val);
                 //Console.Write(" ");
-                generatedPulses[selected_channel, i] = factor * val;
+
+                if (selected_channel != -1)
+                {
+                    generatedPulses[selected_channel, i] = factor * val;
+                }
+                else // DS8R mode with first channel controlling the amplitude (CONTROL BNC socket) and the second channel controlling the TTL signal (TRIGGER BNC)
+                {
+                    generatedPulses[1, i] = factor;
+                    generatedPulses[0, i] = val * 5; // 5V TTL
+                }
             }
 
             return generatedPulses;
@@ -52,6 +61,7 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
         public int switch_channel = -1;
         public int pulse_width = -1;
         public int frequency = -1;
+        public int trigger = -1;
         public long ApplyControlData(AnalogMultiChannelWriter writer, Task analogOutTask, DigitalSingleChannelWriter digitalWriter, Int32 stimulationLength, Int32 pulseWidth, Int32 freq, int selected_channel = 0)
         {
             
@@ -86,12 +96,12 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
 
                 analogOutTask.Stop();
                 DateTimeOffset now = DateTimeOffset.UtcNow;
+                long write_time = now.ToUnixTimeMilliseconds();
                 writer.WriteMultiSample(false, pulseSignalGenerator.generatePulses(normalised_current_level, selected_channel));
                 analogOutTask.Start();
                 analogOutTask.WaitUntilDone();
                 // Strange problem. Looks ok for now: https://forums.ni.com/t5/Multifunction-DAQ/WaitUntilDone-finishes-before-pulses-written-complete/td-p/4193057?profile.language=en
-                Thread.Sleep(500);
-                return now.ToUnixTimeMilliseconds();
+                return write_time;
             }
 
             return -1;
@@ -178,6 +188,10 @@ namespace PainLabDeviceNIDAQDotNet4._5VS2012
             if (_channelConfig.switch_channel_method == "dual")
             {
                 applyResult = controlFrame.ApplyControlData(_analogOutWriter, _analogOutTask, null, _pulseLength, _pulseWidth, _frequency, _selected_channel);
+            }
+            else if (_channelConfig.switch_channel_method == "control-trigger")
+            {
+                applyResult = controlFrame.ApplyControlData(_analogOutWriter, _analogOutTask, null, _pulseLength, _pulseWidth, _frequency, -1);
             }
             else
             {
