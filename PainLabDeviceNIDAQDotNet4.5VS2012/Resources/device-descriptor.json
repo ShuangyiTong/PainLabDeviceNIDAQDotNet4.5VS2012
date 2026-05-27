@@ -5,6 +5,8 @@
   "data_to_report": {
     "stimulation_current_loopback": "float",
 	"stimulation_voltage": "float",
+    "stimulation_current_loopback_2": "float",
+	"stimulation_voltage_2": "float",
 	"last_shock_on_device": "int"
   },
   "data_to_control": {
@@ -22,12 +24,16 @@
   "visual_report": {
     "stimulation_current_loopback": "line_chart",
 	"stimulation_voltage": "line_chart",
+    "stimulation_current_loopback_2": "line_chart",
+	"stimulation_voltage_2": "line_chart",
     "data_rate": 1000,
 	"rolling_time": 1
   },
   "visual_value_range": {
 	"stimulation_current_loopback": {"min": -0.1, "max": 2.6},
-	"stimulation_voltage": {"min": -1, "max": 11}
+	"stimulation_voltage": {"min": -1, "max": 11},
+	"stimulation_current_loopback_2": {"min": -0.1, "max": 2.6},
+	"stimulation_voltage_2": {"min": -1, "max": 11}
   },
   "visual_control": {
 	"normalised_current_level": ["slider", 0, 10],
